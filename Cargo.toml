@@ -1,0 +1,21 @@
+[workspace]
+members = ["example"]
+
+[package]
+name = "surena_game"
+version = "0.1.0"
+edition = "2021"
+authors = ["vilaureu"]
+publish = false
+
+[build-dependencies]
+bindgen = "0.59"
+
+# Optionally, the release build can be optimized.
+[profile.release]
+# Unwinding which reaches an FFI boundary falls back to abort anyway.
+panic = "abort"
+# Perform LTO to achieve better optimization.
+lto = "thin"
+# Strip symbols from created library to save space.
+strip = true
