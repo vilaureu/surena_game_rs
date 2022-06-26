@@ -9,7 +9,7 @@ authors = ["vilaureu"]
 publish = false
 
 [build-dependencies]
-bindgen = "0.59"
+bindgen = "0.60"
 
 # Optionally, the release build can be optimized.
 [profile.release]
