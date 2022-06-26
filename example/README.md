@@ -6,7 +6,7 @@ This example game of _Nim_ shows how to use the _surena_game_ wrapper library.
 
 1. Build the project:
    ```
-   $ cargo build
+   $ cargo build --workspace
    ```
 2. Build the surena project (in `../surena`):
    ```
