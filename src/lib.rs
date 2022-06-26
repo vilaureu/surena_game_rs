@@ -569,17 +569,17 @@ fn check_sizer(sizer: &buf_sizer, features: game_feature_flags) {
     const FAILURE: &str = "string buffer length must not be 0";
 
     if features.options() {
-        assert!(sizer.options_str > 0, "{}", FAILURE);
+        assert!(sizer.options_str > 0, "{FAILURE}");
     }
-    assert!(sizer.state_str > 0, "{}", FAILURE);
+    assert!(sizer.state_str > 0, "{FAILURE}");
     // This can only happen on <32bit platforms:
     let _: usize = sizer
         .max_moves
         .try_into()
         .expect("max_moves does not fit usize");
-    assert!(sizer.move_str > 0, "{}", FAILURE);
+    assert!(sizer.move_str > 0, "{FAILURE}");
     if features.print() {
-        assert!(sizer.print_str > 0, "{}", FAILURE);
+        assert!(sizer.print_str > 0, "{FAILURE}");
     }
 }
 
@@ -588,7 +588,7 @@ unsafe fn cstring_to_rust<'l>(string: *const c_char) -> Result<Option<&'l str>> 
         None
     } else {
         Some(CStr::from_ptr(string).to_str().map_err(|e| {
-            Error::new_dynamic(ErrorCode::InvalidInput, format!("UTF-8 error: {}", e))
+            Error::new_dynamic(ErrorCode::InvalidInput, format!("UTF-8 error: {e}"))
         })?)
     })
 }

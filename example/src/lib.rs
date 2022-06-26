@@ -103,7 +103,7 @@ impl GameMethods for Nim {
             // Errors can be nicely handled using new_dynamic and format!().
             Error::new_dynamic(
                 ErrorCode::InvalidInput,
-                format!("counter parsing error: {}", e),
+                format!("counter parsing error: {e}"),
             )
         })?;
 
@@ -119,7 +119,7 @@ impl GameMethods for Nim {
         let max_sub = max_sub.parse().map_err(|e| {
             Error::new_dynamic(
                 ErrorCode::InvalidInput,
-                format!("subtrahend parsing error: {}", e),
+                format!("subtrahend parsing error: {e}"),
             )
         })?;
         if max_sub == 0 {
@@ -204,7 +204,7 @@ impl GameMethods for Nim {
         self.counter = counter.parse().map_err(|e| {
             Error::new_dynamic(
                 ErrorCode::InvalidInput,
-                format!("counter parsing error: {}", e),
+                format!("counter parsing error: {e}"),
             )
         })?;
 
@@ -290,10 +290,7 @@ impl GameMethods for Nim {
 
     fn get_move_code(&mut self, _player: player_id, string: &str) -> Result<move_code> {
         let mov: Counter = string.parse().map_err(|e| {
-            Error::new_dynamic(
-                ErrorCode::InvalidInput,
-                format!("move parsing error: {}", e),
-            )
+            Error::new_dynamic(ErrorCode::InvalidInput, format!("move parsing error: {e}"))
         })?;
         sub_too_large(mov, self.max_sub)?;
         Ok(mov.into())
@@ -333,7 +330,7 @@ fn sub_too_large(mov: Counter, max: Counter) -> Result<()> {
     if mov > max.into() {
         Err(Error::new_dynamic(
             ErrorCode::InvalidInput,
-            format!("can subtract at most {}", max),
+            format!("can subtract at most {max}"),
         ))
     } else {
         Ok(())
