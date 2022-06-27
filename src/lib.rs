@@ -72,6 +72,7 @@ pub type ErrorString = Option<Cow<'static, CStr>>;
 ///
 /// The surena game API always expects an error code and optionally an error
 /// message.
+#[derive(Debug)]
 pub struct Error {
     pub code: ErrorCode,
     pub message: ErrorString,
@@ -129,7 +130,7 @@ impl From<ErrorCode> for Error {
 /// _surena_ error codes as a Rust enum.
 ///
 /// Custom error codes are currently not supported.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 pub enum ErrorCode {
     StateUnrecoverable,
