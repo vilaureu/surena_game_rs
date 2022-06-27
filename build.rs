@@ -9,11 +9,12 @@ fn main() {
     println!("cargo:rerun-if-changed=wrapper.h");
 
     let bindings = bindgen::Builder::default()
-        .derive_default(true)
         .header("wrapper.h")
         .clang_arg("-Isurena/includes")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .size_t_is_usize(true)
+        .derive_default(true)
+        .derive_eq(true)
         .generate()
         .expect("Unable to generate bindings");
 
