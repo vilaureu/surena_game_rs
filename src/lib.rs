@@ -130,7 +130,7 @@ impl From<ErrorCode> for Error {
 /// _surena_ error codes as a Rust enum.
 ///
 /// Custom error codes are currently not supported.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ErrorCode {
     StateUnrecoverable,
