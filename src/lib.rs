@@ -211,15 +211,18 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
     fn is_legal_move(&mut self, player: player_id, mov: move_code) -> Result<()>;
 
     /// Must be implemented when the [`game_feature_flags::options`] is enabled.
-    fn create_with_opts_str(_string: &str) -> Result<(Self, buf_sizer)> {
+    #[allow(unused_variables)]
+    fn create_with_opts_str(string: &str) -> Result<(Self, buf_sizer)> {
         unimplemented!("create_with_opts_str")
     }
     /// Must be implemented when the [`game_feature_flags::options`] is enabled.
-    fn export_options_str(&mut self, _str_buf: &mut StrBuf) -> Result<()> {
+    #[allow(unused_variables)]
+    fn export_options_str(&mut self, str_buf: &mut StrBuf) -> Result<()> {
         unimplemented!("export_options_str")
     }
     /// Must be implemented when the [`game_feature_flags::print`] is enabled.
-    fn debug_print(&mut self, _str_buf: &mut StrBuf) -> Result<()> {
+    #[allow(unused_variables)]
+    fn debug_print(&mut self, str_buf: &mut StrBuf) -> Result<()> {
         unimplemented!("debug_print")
     }
 
