@@ -5,6 +5,7 @@
 
 use std::{
     fmt::Write,
+    marker::PhantomData,
     num::NonZeroU8,
     ops::{Index, IndexMut},
     os::raw::c_char,
@@ -15,19 +16,24 @@ use std::{
 /// [`PtrVec`] allows to perform vector operations on memory not allocated by
 /// a [`Vec`].
 /// This is especially useful for buffers provided via FFI.
-pub struct PtrVec<T> {
+///
+/// The lifetime bound makes sure that [`PtrVec`]s with different lifetimes
+/// cannot be [`std::mem::swap`]ped.
+pub struct PtrVec<'b, T> {
     buf: *mut T,
     len: usize,
     capacity: usize,
+    _lifetime: PhantomData<&'b mut T>,
 }
 
-impl<T> PtrVec<T> {
+impl<'b, T> PtrVec<'b, T> {
     #[inline]
     pub(crate) unsafe fn new(buf: *mut T, capacity: usize) -> Self {
         Self {
             buf,
             len: 0,
             capacity,
+            _lifetime: Default::default(),
         }
     }
 
@@ -76,7 +82,7 @@ impl<T> PtrVec<T> {
     }
 }
 
-impl<T: Clone> PtrVec<T> {
+impl<'b, T: Clone> PtrVec<'b, T> {
     /// Resizes the vector to `new_len`.
     ///
     /// If `new_len` is smaller than the current length, the vector is extended
@@ -123,7 +129,7 @@ impl<T: Clone> PtrVec<T> {
     }
 }
 
-impl<T> Index<usize> for PtrVec<T> {
+impl<'b, T> Index<usize> for PtrVec<'b, T> {
     type Output = T;
 
     #[inline]
@@ -134,7 +140,7 @@ impl<T> Index<usize> for PtrVec<T> {
     }
 }
 
-impl<T> IndexMut<usize> for PtrVec<T> {
+impl<'b, T> IndexMut<usize> for PtrVec<'b, T> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.assert_index(index);
@@ -143,7 +149,7 @@ impl<T> IndexMut<usize> for PtrVec<T> {
     }
 }
 
-impl PtrVec<NonZeroU8> {
+impl<'b> PtrVec<'b, NonZeroU8> {
     /// Size must be at least 1.
     #[inline]
     pub(crate) unsafe fn from_c_char(buf: *mut c_char, size: usize) -> Self {
@@ -153,6 +159,7 @@ impl PtrVec<NonZeroU8> {
             capacity: size
                 .checked_sub(1)
                 .expect("C string buffer must not be of size zero"),
+            _lifetime: Default::default(),
         }
     }
 
@@ -162,7 +169,7 @@ impl PtrVec<NonZeroU8> {
     }
 }
 
-impl Write for PtrVec<NonZeroU8> {
+impl<'b> Write for PtrVec<'b, NonZeroU8> {
     /// Appends the bytes of `s` to the vector.
     ///
     /// Returns an error when inserting NUL bytes or when the vector is full.

@@ -178,7 +178,7 @@ macro_rules! surena_try {
 }
 
 /// A [`PtrVec`] for writing and returning C strings.
-pub type StrBuf = PtrVec<NonZeroU8>;
+pub type StrBuf<'b> = PtrVec<'b, NonZeroU8>;
 
 /// Main trait which needs to be implemented by your game struct.
 ///
