@@ -5,10 +5,12 @@
 
 use std::{
     fmt::Write,
-    marker::PhantomData,
+    mem::{size_of, transmute, MaybeUninit},
     num::NonZeroU8,
     ops::{Index, IndexMut},
     os::raw::c_char,
+    ptr::NonNull,
+    slice,
 };
 
 /// Vector implementation over a memory buffer with a fixed, run-time capacity.
@@ -20,20 +22,26 @@ use std::{
 /// The lifetime bound makes sure that [`PtrVec`]s with different lifetimes
 /// cannot be [`std::mem::swap`]ped.
 pub struct PtrVec<'b, T> {
-    buf: *mut T,
+    buf: &'b mut [MaybeUninit<T>],
     len: usize,
-    capacity: usize,
-    _lifetime: PhantomData<&'b mut T>,
 }
 
 impl<'b, T> PtrVec<'b, T> {
+    /// Create a [`PtrVec`] which uses the memory at `buf` up to length
+    /// `capacity` as backing storage.
+    ///
+    /// # Safety
+    /// If `T` is not zero-sized and the `capacity` is not zero, `buf` must
+    /// fullfil the requirements of [`slice::from_raw_parts_mut()`].
     #[inline]
-    pub(crate) unsafe fn new(buf: *mut T, capacity: usize) -> Self {
+    pub(crate) unsafe fn new(mut buf: *mut T, capacity: usize) -> Self {
+        if size_of::<T>() == 0 || capacity == 0 {
+            buf = NonNull::dangling().as_ptr();
+        }
+
         Self {
-            buf,
+            buf: slice::from_raw_parts_mut(buf.cast::<MaybeUninit<T>>(), capacity),
             len: 0,
-            capacity,
-            _lifetime: Default::default(),
         }
     }
 
@@ -54,12 +62,9 @@ impl<'b, T> PtrVec<'b, T> {
     /// ```
     #[inline]
     pub fn from_vec(buf: &'b mut Vec<T>) -> Self {
-        let capacity = buf.len();
         Self {
-            buf: buf.as_mut_ptr(),
+            buf: unsafe { transmute::<&'b mut [T], &'b mut [MaybeUninit<T>]>(buf) },
             len: 0,
-            capacity,
-            _lifetime: Default::default(),
         }
     }
 
@@ -79,13 +84,13 @@ impl<'b, T> PtrVec<'b, T> {
     /// [`Self::len()`].
     #[inline]
     pub fn capacity(&self) -> usize {
-        self.capacity
+        self.buf.len()
     }
 
     /// Returns whether [`Self::len()`]` == `[`Self::capacity()`].
     #[inline]
     pub fn is_full(&self) -> bool {
-        self.len >= self.capacity
+        self.len >= self.capacity()
     }
 
     /// Append to the buffer at index [`Self::len()`].
@@ -94,17 +99,11 @@ impl<'b, T> PtrVec<'b, T> {
     /// Panics if the vector is full.
     #[inline]
     pub fn push(&mut self, value: T) {
-        assert!(self.len < self.capacity, "cannot push into full PtrVec");
-
-        unsafe {
-            self.buf.add(self.len).write(value);
-        }
+        self.buf
+            .get_mut(self.len)
+            .expect("cannot push into full PtrVec")
+            .write(value);
         self.len += 1;
-    }
-
-    #[inline]
-    fn assert_index(&self, index: usize) {
-        assert!(index < self.len, "cannot access element outside PtrVec");
     }
 }
 
@@ -118,7 +117,7 @@ impl<'b, T: Clone> PtrVec<'b, T> {
     /// Panics if `new_len` is larger than the capacity.
     pub fn resize(&mut self, new_len: usize, value: T) {
         assert!(
-            new_len <= self.capacity,
+            new_len <= self.capacity(),
             "cannot resize PtrVec over capacity"
         );
 
@@ -126,7 +125,7 @@ impl<'b, T: Clone> PtrVec<'b, T> {
             for _ in new_len..self.len {
                 self.len -= 1;
                 unsafe {
-                    self.buf.add(self.len).drop_in_place();
+                    self.buf[self.len].assume_init_drop();
                 }
             }
         } else {
@@ -142,36 +141,36 @@ impl<'b, T: Clone> PtrVec<'b, T> {
     /// Panics if `other` is larger than the number of free slots.
     pub fn extend_from_slice(&mut self, other: &[T]) {
         assert!(
-            other.len() <= self.capacity - self.len,
+            other.len() <= self.capacity() - self.len,
             "not enough free space in PtrVec"
         );
 
         for value in other.iter() {
-            unsafe {
-                self.buf.add(self.len).write(value.clone());
-            }
-            self.len += 1;
+            self.push(value.clone());
         }
     }
 }
+
+const ACCESS_ERROR: &str = "cannot access element outside PtrVec";
 
 impl<'b, T> Index<usize> for PtrVec<'b, T> {
     type Output = T;
 
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
-        self.assert_index(index);
-
-        unsafe { &*self.buf.add(index) }
+        unsafe { self.buf.get(index).expect(ACCESS_ERROR).assume_init_ref() }
     }
 }
 
 impl<'b, T> IndexMut<usize> for PtrVec<'b, T> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.assert_index(index);
-
-        unsafe { &mut *self.buf.add(index) }
+        unsafe {
+            self.buf
+                .get_mut(index)
+                .expect(ACCESS_ERROR)
+                .assume_init_mut()
+        }
     }
 }
 
@@ -179,19 +178,11 @@ impl<'b> PtrVec<'b, NonZeroU8> {
     /// Size must be at least 1.
     #[inline]
     pub(crate) unsafe fn from_c_char(buf: *mut c_char, size: usize) -> Self {
-        Self {
-            buf: buf.cast(),
-            len: 0,
-            capacity: size
-                .checked_sub(1)
+        Self::new(
+            buf.cast(),
+            size.checked_sub(1)
                 .expect("C string buffer must not be of size zero"),
-            _lifetime: Default::default(),
-        }
-    }
-
-    #[inline]
-    pub(crate) unsafe fn nul_terminate(&mut self) {
-        self.buf.add(self.len).cast::<c_char>().write(0);
+        )
     }
 }
 
