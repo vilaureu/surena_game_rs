@@ -12,10 +12,10 @@ pub use surena::{
 
 use std::{
     borrow::Cow,
-    ffi::{CStr, CString},
+    ffi::{c_void, CStr, CString},
     num::NonZeroU8,
     os::raw::c_char,
-    ptr::{self, null, null_mut},
+    ptr::{addr_of, addr_of_mut, null, null_mut},
 };
 
 /// This automatically exports the game API version to the outside.
@@ -271,7 +271,7 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
 
     #[doc(hidden)]
     unsafe extern "C" fn destroy_wrapped(game: *mut surena::game) -> surena::error_code {
-        let data = &mut (*game).data1;
+        let data: &mut *mut c_void = &mut *addr_of_mut!((*game).data1);
         if !data.is_null() {
             Box::from_raw(data.cast::<Self>());
             // Leave as null pointer to catch use-after-free errors.
@@ -290,12 +290,13 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
         clone_target.copy_from_nonoverlapping(game, 1);
 
         // Initialize data1 to zero in case clone fails.
-        ptr::write(&mut (*clone_target).data1, null_mut());
+        let data1: *mut *mut c_void = addr_of_mut!((*clone_target).data1);
+        data1.write(null_mut());
         Aux::init(clone_target);
 
         let data = get_data::<Self>(game).clone();
         // data1 is already initialized.
-        (*clone_target).data1 = Box::into_raw(Box::new(data)).cast();
+        *data1 = Box::into_raw(Box::new(data)).cast();
 
         surena::ERR_ERR_OK
     }
@@ -546,23 +547,25 @@ struct Aux {
 
 impl Aux {
     unsafe fn init(game: *mut surena::game) {
-        ptr::write(
-            &mut (*game).data2,
-            Box::into_raw(Box::<Self>::new(Self::default())).cast(),
-        );
+        // Initialize data2 to zero in case creation fails.
+        let data2: *mut *mut c_void = addr_of_mut!((*game).data2);
+        data2.write(null_mut());
+        let aux = Box::into_raw(Box::<Self>::new(Self::default()));
+        *data2 = aux.cast();
     }
 
     #[inline]
     unsafe fn get<'l>(game: *mut surena::game) -> &'l mut Self {
-        &mut *(*game).data2.cast()
+        let data2: *mut *mut c_void = addr_of_mut!((*game).data2);
+        &mut *(*data2).cast::<Self>()
     }
 
     unsafe fn free(game: *mut surena::game) {
-        let aux = (*game).data2;
+        let aux: &mut *mut c_void = &mut *addr_of_mut!((*game).data2);
         if !aux.is_null() {
             Box::from_raw(aux.cast::<Self>());
             // Leave as null pointer to catch use-after-free errors.
-            (*game).data2 = null_mut();
+            *aux = null_mut();
         }
     }
 
@@ -574,17 +577,20 @@ impl Aux {
 
 #[inline]
 unsafe fn get_data<'l, G>(game: *mut surena::game) -> &'l mut G {
-    &mut *(*game).data1.cast()
+    let data1: *mut *mut c_void = addr_of_mut!((*game).data1);
+    &mut *(*data1).cast::<G>()
 }
 
 #[inline]
 unsafe fn get_features(game: *mut surena::game) -> game_feature_flags {
-    (*(*game).methods).features
+    // The methods struct is created by create_game_methods and should be fully
+    // initialized.
+    (**addr_of_mut!((*game).methods)).features
 }
 
 #[inline]
 unsafe fn get_sizer<'l>(game: *mut surena::game) -> &'l buf_sizer {
-    &(*game).sizer
+    &*addr_of!((*game).sizer)
 }
 
 fn check_sizer(sizer: &buf_sizer, features: game_feature_flags) {
@@ -621,13 +627,14 @@ unsafe fn create<G, F: FnOnce() -> Result<(G, buf_sizer)>>(
 ) -> surena::error_code {
     Aux::init(game);
     // Initialize data1 to zero in case creation fails.
-    ptr::write(&mut (*game).data1, null_mut());
+    let data1: *mut *mut c_void = addr_of_mut!((*game).data1);
+    data1.write(null_mut());
 
     let (data, sizer) = surena_try!(game, func());
     check_sizer(&sizer, get_features(game));
-    ptr::write(&mut (*game).sizer, sizer);
+    addr_of_mut!((*game).sizer).write(sizer);
     // data1 is already initialized.
-    (*game).data1 = Box::into_raw(Box::new(data)).cast();
+    *data1 = Box::into_raw(Box::new(data)).cast();
 
     surena::ERR_ERR_OK
 }
