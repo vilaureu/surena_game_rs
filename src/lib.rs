@@ -273,7 +273,7 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
     unsafe extern "C" fn destroy_wrapped(game: *mut surena::game) -> surena::error_code {
         let data = &mut (*game).data1;
         if !data.is_null() {
-            Box::from_raw(*data);
+            Box::from_raw(data.cast::<Self>());
             // Leave as null pointer to catch use-after-free errors.
             *data = null_mut();
         }
@@ -560,7 +560,7 @@ impl Aux {
     unsafe fn free(game: *mut surena::game) {
         let aux = (*game).data2;
         if !aux.is_null() {
-            Box::<Self>::from_raw(aux.cast());
+            Box::from_raw(aux.cast::<Self>());
             // Leave as null pointer to catch use-after-free errors.
             (*game).data2 = null_mut();
         }
