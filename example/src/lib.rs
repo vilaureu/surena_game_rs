@@ -326,7 +326,7 @@ fn example_game_methods() -> game_methods {
 }
 
 fn sub_too_large(mov: Counter, max: Counter) -> Result<()> {
-    if mov > max.into() {
+    if mov > max {
         Err(Error::new_dynamic(
             ErrorCode::InvalidInput,
             format!("can subtract at most {max}"),
