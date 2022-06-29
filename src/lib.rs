@@ -289,13 +289,13 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
     ) -> surena::error_code {
         clone_target.copy_from_nonoverlapping(game, 1);
 
-        Aux::init(game);
         // Initialize data1 to zero in case clone fails.
-        ptr::write(&mut (*game).data1, null_mut());
+        ptr::write(&mut (*clone_target).data1, null_mut());
+        Aux::init(clone_target);
 
         let data = get_data::<Self>(game).clone();
         // data1 is already initialized.
-        (*game).data1 = Box::into_raw(Box::new(data)).cast();
+        (*clone_target).data1 = Box::into_raw(Box::new(data)).cast();
 
         surena::ERR_ERR_OK
     }
