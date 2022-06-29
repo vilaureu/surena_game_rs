@@ -37,6 +37,32 @@ impl<'b, T> PtrVec<'b, T> {
         }
     }
 
+    /// Create a new [`PtrVec`] using a [`Vec`] as backing storage.
+    ///
+    /// It starts with length 0.
+    ///
+    /// # Example
+    /// ```
+    /// # use surena_game::PtrVec;
+    /// let mut vec = vec![0; 3];
+    /// let mut ptr_vec = PtrVec::from_vec(&mut vec);
+    /// assert!(ptr_vec.is_empty());
+    /// ptr_vec.push(42);
+    /// assert_eq!(3, ptr_vec.capacity());
+    /// assert_eq!(1, ptr_vec.len());
+    /// assert_eq!(42, vec[0]);
+    /// ```
+    #[inline]
+    pub fn from_vec(buf: &'b mut Vec<T>) -> Self {
+        let capacity = buf.len();
+        Self {
+            buf: buf.as_mut_ptr(),
+            len: 0,
+            capacity,
+            _lifetime: Default::default(),
+        }
+    }
+
     /// Length of the vector.
     #[inline]
     pub fn len(&self) -> usize {
@@ -175,11 +201,12 @@ impl<'b> Write for PtrVec<'b, NonZeroU8> {
     /// Returns an error when inserting NUL bytes or when the vector is full.
     ///
     /// # Example
-    /// ```no_run
+    /// ```
     /// # use surena_game::*;
     /// # use std::{ptr::null_mut, fmt::Write};
     /// # #[allow(deref_nullptr)]
-    /// # let ptr_vec = unsafe { &mut *null_mut::<StrBuf>() };
+    /// # let mut vec = vec![1.try_into().unwrap(); 14];
+    /// # let mut ptr_vec = StrBuf::from_vec(&mut vec);
     /// write!(ptr_vec, "example string").expect("failed to write PtrVec");
     /// ```
     fn write_str(&mut self, s: &str) -> std::fmt::Result {
