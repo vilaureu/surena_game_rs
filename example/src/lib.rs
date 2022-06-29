@@ -2,7 +2,6 @@
 
 use surena_game::*;
 
-use std::ffi::CStr;
 use std::fmt::Write;
 
 type Counter = u16;
@@ -335,11 +334,6 @@ fn sub_too_large(mov: Counter, max: Counter) -> Result<()> {
     } else {
         Ok(())
     }
-}
-
-/// Simple helper function to create a [`CStr`] from a byte literal.
-fn cstr(bytes: &[u8]) -> &CStr {
-    CStr::from_bytes_with_nul(bytes).expect("invalid C string")
 }
 
 /// Calculates the number of digits needed to print `n`.

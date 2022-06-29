@@ -521,6 +521,21 @@ pub fn create_game_methods<G: GameMethods>(metadata: Metadata) -> game_methods {
     }
 }
 
+/// Simple helper function to create a [`CStr`] from a byte literal.
+///
+/// # Panics
+/// `bytes` must be NUL terminated and must not contain any other NUL byte.
+///
+/// # Example
+/// ```
+/// # use surena_game::cstr;
+/// cstr(b"my C-style string\0");
+/// ```
+#[inline]
+pub fn cstr(bytes: &[u8]) -> &CStr {
+    CStr::from_bytes_with_nul(bytes).expect("invalid C string")
+}
+
 #[derive(Default)]
 struct Aux {
     error: ErrorString,
