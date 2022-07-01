@@ -1,10 +1,10 @@
 //! This is a wrapper library for the game API of the
 //! [_surena_](https://github.com/RememberOfLife/surena/) game engine.
 
-pub mod ptrvec;
+pub mod ptr_vec;
 pub mod surena;
 
-pub use ptrvec::PtrVec;
+pub use ptr_vec::PtrVec;
 pub use surena::{
     buf_sizer, game_feature_flags, game_methods, move_code, player_id, semver, MOVE_NONE,
     PLAYER_NONE, PLAYER_RAND,
@@ -257,14 +257,12 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
         ret_size: *mut usize,
         str_buf: *mut c_char,
     ) -> surena::error_code {
-        let len = get_sizer(game).options_str;
-        let mut ptr_vec = StrBuf::from_c_char(str_buf, len);
+        let mut ptr_vec = StrBuf::from_c_char(str_buf, ret_size, get_sizer(game).options_str);
         surena_try!(
             game,
             get_data::<Self>(game).export_options_str(&mut ptr_vec)
         );
-        nul_terminate(str_buf, ptr_vec.len(), len);
-        ret_size.write(ptr_vec.len());
+        str_buf.add(*ret_size).write(0);
 
         surena::ERR_ERR_OK
     }
@@ -341,11 +339,9 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
         ret_size: *mut usize,
         str_buf: *mut c_char,
     ) -> surena::error_code {
-        let len = get_sizer(game).state_str;
-        let mut ptr_vec = StrBuf::from_c_char(str_buf, len);
+        let mut ptr_vec = StrBuf::from_c_char(str_buf, ret_size, get_sizer(game).state_str);
         surena_try!(game, get_data::<Self>(game).export_state(&mut ptr_vec));
-        nul_terminate(str_buf, ptr_vec.len(), len);
-        ret_size.write(ptr_vec.len());
+        str_buf.add(*ret_size).write(0);
 
         surena::ERR_ERR_OK
     }
@@ -356,9 +352,14 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
         ret_count: *mut u8,
         players: *mut player_id,
     ) -> surena::error_code {
-        let mut players = PtrVec::new(players, get_sizer(game).max_players_to_move.into());
+        let mut len = 0;
+        let mut players = PtrVec::new(
+            players,
+            &mut len,
+            get_sizer(game).max_players_to_move.into(),
+        );
         surena_try!(game, get_data::<Self>(game).players_to_move(&mut players));
-        ret_count.write(players.len() as u8);
+        ret_count.write(len as u8);
 
         surena::ERR_ERR_OK
     }
@@ -370,12 +371,13 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
         ret_count: *mut u32,
         moves: *mut move_code,
     ) -> surena::error_code {
-        let mut moves = PtrVec::new(moves, get_sizer(game).max_moves as usize);
+        let mut len = 0;
+        let mut moves = PtrVec::new(moves, &mut len, get_sizer(game).max_moves as usize);
         surena_try!(
             game,
             get_data::<Self>(game).get_concrete_moves(player, &mut moves)
         );
-        ret_count.write(moves.len() as u32);
+        ret_count.write(len as u32);
 
         surena::ERR_ERR_OK
     }
@@ -409,9 +411,10 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
         ret_count: *mut u8,
         players: *mut player_id,
     ) -> surena::error_code {
-        let mut players = PtrVec::new(players, get_sizer(game).max_results.into());
+        let mut len = 0;
+        let mut players = PtrVec::new(players, &mut len, get_sizer(game).max_results.into());
         surena_try!(game, get_data::<Self>(game).get_results(&mut players));
-        ret_count.write(players.len() as u8);
+        ret_count.write(len as u8);
 
         surena::ERR_ERR_OK
     }
@@ -436,11 +439,9 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
         ret_size: *mut usize,
         str_buf: *mut c_char,
     ) -> surena::error_code {
-        let len = get_sizer(game).print_str;
-        let mut ptr_vec = StrBuf::from_c_char(str_buf, len);
+        let mut ptr_vec = StrBuf::from_c_char(str_buf, ret_size, get_sizer(game).print_str);
         surena_try!(game, get_data::<Self>(game).debug_print(&mut ptr_vec));
-        nul_terminate(str_buf, ptr_vec.len(), len);
-        ret_size.write(ptr_vec.len());
+        str_buf.add(*ret_size).write(0);
 
         surena::ERR_ERR_OK
     }
@@ -637,23 +638,6 @@ unsafe fn create<G, F: FnOnce() -> Result<(G, buf_sizer)>>(
     *data1 = Box::into_raw(Box::new(data)).cast();
 
     surena::ERR_ERR_OK
-}
-
-/// Terminate the `str_buf` with a NUL byte at `at`.
-///
-/// # Panics
-/// Panics if `at` is grater or equal to `len`.
-///
-/// Theoretically, this is already ensured by the [`PtrVec`] implementation.
-/// Futhermore, it should not be possible to construct and swap another
-/// [`StrBuf`] into a `&'a mut StrBuf<'b>` because this type is invariant
-/// over `'b` and you cannot construct a [`StrBuf`] with arbitrary lifetime `'b`
-/// safely.
-/// Nevertheless, we perform the check here to be on the safe side.
-#[inline]
-unsafe fn nul_terminate(str_buf: *mut c_char, at: usize, len: usize) {
-    assert!(at < len, "cannot terminate C-string past its end");
-    str_buf.add(at).cast::<c_char>().write(0);
 }
 
 /// Internally used by [`plugin_get_game_methods`].
