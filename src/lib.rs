@@ -204,6 +204,12 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
         moves: &mut PtrVec<move_code>,
     ) -> Result<()>;
     fn get_move_code(&mut self, player: player_id, string: &str) -> Result<move_code>;
+    fn get_move_str(
+        &mut self,
+        player: player_id,
+        mov: move_code,
+        str_buf: &mut StrBuf,
+    ) -> Result<()>;
     fn make_move(&mut self, player: player_id, mov: move_code) -> Result<()>;
     fn get_results(&mut self, players: &mut PtrVec<player_id>) -> Result<()>;
     /// Sync counters are currently not supported.
@@ -434,6 +440,24 @@ pub trait GameMethods: Sized + Clone + Eq + Send {
     }
 
     #[doc(hidden)]
+    unsafe extern "C" fn get_move_str_wrapped(
+        game: *mut surena::game,
+        player: player_id,
+        mov: move_code,
+        ret_size: *mut usize,
+        str_buf: *mut c_char,
+    ) -> surena::error_code {
+        let mut ptr_vec = StrBuf::from_c_char(str_buf, ret_size, get_sizer(game).move_str);
+        surena_try!(
+            game,
+            get_data::<Self>(game).get_move_str(player, mov, &mut ptr_vec)
+        );
+        str_buf.add(*ret_size).write(0);
+
+        surena::ERR_ERR_OK
+    }
+
+    #[doc(hidden)]
     unsafe extern "C" fn debug_print_wrapped(
         game: *mut surena::game,
         ret_size: *mut usize,
@@ -517,6 +541,7 @@ pub fn create_game_methods<G: GameMethods>(metadata: Metadata) -> game_methods {
         make_move: Some(G::make_move_wrapped),
         get_results: Some(G::get_results_wrapped),
         get_move_code: Some(G::get_move_code_wrapped),
+        get_move_str: Some(G::get_move_str_wrapped),
         debug_print: if metadata.features.print() {
             Some(G::debug_print_wrapped)
         } else {

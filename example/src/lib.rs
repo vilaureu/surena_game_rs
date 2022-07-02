@@ -295,6 +295,16 @@ impl GameMethods for Nim {
         Ok(mov.into())
     }
 
+    fn get_move_str(
+        &mut self,
+        _player: player_id,
+        mov: move_code,
+        str_buf: &mut StrBuf,
+    ) -> Result<()> {
+        write!(str_buf, "{}", mov).expect("failed to write move buffer");
+        Ok(())
+    }
+
     fn debug_print(&mut self, str_buf: &mut StrBuf) -> Result<()> {
         self.export_state(str_buf)?;
         writeln!(str_buf).expect("failed to write print buffer");
