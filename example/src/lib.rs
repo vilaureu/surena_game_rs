@@ -36,16 +36,16 @@ impl Nim {
     /// Especially, remember that string lengths also include the NUL byte.
     fn calc_sizer(&self) -> buf_sizer {
         // eg. b"A 42\0"
-        let state_str = digits(self.counter) as usize + 3;
+        let state_str = digits(self.counter) + 3;
         buf_sizer {
-            options_str: (digits(self.counter) + digits(self.max_sub) + 2).into(),
+            options_str: digits(self.counter) + digits(self.max_sub) + 2,
             state_str,
             player_count: 2,
             max_players_to_move: 1,
             max_moves: self.max_sub.into(),
             max_actions: 0,
             max_results: 1,
-            move_str: digits(self.max_sub) as usize + 1,
+            move_str: digits(self.max_sub) + 1,
             print_str: state_str + 1,
         }
     }
@@ -337,7 +337,7 @@ fn sub_too_large(mov: Counter, max: Counter) -> Result<()> {
 }
 
 /// Calculates the number of digits needed to print `n`.
-const fn digits(mut n: Counter) -> Counter {
+const fn digits(mut n: Counter) -> usize {
     let mut digits = 1;
     loop {
         n /= 10;
