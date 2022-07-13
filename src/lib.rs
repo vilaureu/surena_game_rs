@@ -651,10 +651,10 @@ unsafe fn create<G, F: FnOnce() -> Result<(G, buf_sizer)>>(
     game: *mut surena::game,
     func: F,
 ) -> surena::error_code {
-    Aux::init(game);
     // Initialize data1 to zero in case creation fails.
     let data1: *mut *mut c_void = addr_of_mut!((*game).data1);
     data1.write(null_mut());
+    Aux::init(game);
 
     let (data, sizer) = surena_try!(game, func());
     check_sizer(&sizer, get_features(game));
