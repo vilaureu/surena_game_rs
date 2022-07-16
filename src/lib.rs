@@ -18,20 +18,13 @@ use std::{
     ptr::{addr_of, addr_of_mut, null, null_mut},
 };
 
-/// This automatically exports the game API version to the outside.
-///
-/// You do not have to use this function yourself.
-#[no_mangle]
-pub extern "C" fn plugin_get_game_capi_version() -> u64 {
-    surena::SURENA_GAME_API_VERSION
-}
-
 /// This macro creates the `plugin_get_game_methods` function.
 ///
 /// Is must be supplied with all [`game_methods`](surena::game_methods) which
 /// should be exported.
 /// These can be generated using [`create_game_methods`].
 /// This method can only be called once but with multiple methods.
+/// It also exports the `plugin_get_game_capi_version` function for you.
 ///
 /// ## Example
 /// ```ignore
@@ -58,6 +51,12 @@ macro_rules! plugin_get_game_methods {
             for i in 0..$crate::count!($($x),*) {
                 methods.add(i).write(&src[i]);
             }
+        }
+
+        /// This exports the game API version to the outside.
+        #[no_mangle]
+        pub extern "C" fn plugin_get_game_capi_version() -> u64 {
+            surena::SURENA_GAME_API_VERSION
         }
     };
 }
