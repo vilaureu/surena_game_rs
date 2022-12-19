@@ -13,14 +13,14 @@ jobs:
   build:
     name: Build and test
     runs-on: ubuntu-latest
+    outputs:
+      mirabel_sys: ${{ steps.step1.mirabel_sys.rev }}
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: recursive
       - name: Get date
         id: get-date
         # purge cache weekly to refresh updated dependencies
-        run: echo "::set-output name=date::$(date -u "+%Y-%W")"
+        run: echo "date=$(date -u "+%Y-%W")" >> $GITHUB_OUTPUT
       - uses: actions/cache@v3
         with:
           path: |
@@ -37,6 +37,14 @@ jobs:
         with:
           name: example
           path: target/debug/libexample.so
+      - name: Install cargo-lock
+        run: cargo install cargo-lock --version=8.0.3 --features=cli
+      # find out mirabel_sys commit hash via cargo-lock
+      - name: Get mirabel_sys revision
+        id: mirabel_sys
+        run: >-
+          echo "rev=$(cargo lock --sources --package mirabel_sys | sed -rn
+          's/^.+rev=([a-f0-9]+)#\1\)$/\1/p')" >> $GITHUB_OUTPUT
       - name: Test
         timeout-minutes: 5
         run: cargo test --verbose
@@ -51,15 +59,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
+          repository: mirabel_sys
+          ref: ${{ needs.build.outputs.mirabel_sys }}
           submodules: recursive
       - name: Get surena commit
         id: get-surena
         # purge cache on submodule update
         run: echo "::set-output name=commit::$(git rev-parse HEAD)"
-        working-directory: surena
+        working-directory: mirabel/lib/surena
       - uses: actions/cache@v3
         with:
-          path: surena/build/
+          path: build/
           key: ${{ runner.os }}-surena-${{ steps.get-surena.outputs.commit }}
       - uses: actions/download-artifact@v3
         with:
@@ -69,13 +79,13 @@ jobs:
       - name: Configure
         # GCC-9 crashes when compiling surena
         run: >-
-          cmake -S surena -B surena/build -DCMAKE_BUILD_TYPE=Debug
+          cmake -S mirabel/lib/surena -B build -DCMAKE_BUILD_TYPE=Debug
           -DCMAKE_C_COMPILER=/usr/bin/gcc-10
           -DCMAKE_CXX_COMPILER=/usr/bin/g++-10
       - name: Build
-        run: cmake --build surena/build
+        run: cmake --build build
       - name: Test
         timeout-minutes: 5
         run: >-
-          echo -e "5\ninvalid\n4\n2\n1" | ./surena/build/surena --game-plugin
+          echo -e "5\ninvalid\n4\n2\n1" | ./build/surena --game-plugin
           ./libexample.so --game-options "10 5"

@@ -228,7 +228,7 @@ impl<T> Storage<T> {
     pub fn get_ptr_vec(&mut self) -> PtrVec<T> {
         self.clear();
         PtrVec {
-            buf: &mut *self.buf,
+            buf: &mut self.buf,
             len: &mut self.len,
         }
     }
@@ -281,6 +281,6 @@ impl Storage<NonZeroU8> {
     /// assert_eq!("Hello World!", storage.as_str().expect("UTF8 conversion failed"));
     /// ```
     pub fn as_str(&self) -> Result<&str, Utf8Error> {
-        from_utf8(unsafe { transmute::<&[NonZeroU8], &[u8]>(&*self) })
+        from_utf8(unsafe { transmute::<&[NonZeroU8], &[u8]>(self) })
     }
 }

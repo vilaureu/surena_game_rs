@@ -30,12 +30,59 @@ impl Nim {
         }
     }
 
+    fn from_options(opts: &str) -> Result<Self> {
+        // eg. "21 3"
+        let mut split = opts.split_whitespace();
+
+        let counter = match split.next() {
+            None => {
+                // Remember to include a trailing NUL byte for static errors!
+                return Err(Error::new_static(
+                    ErrorCode::InvalidInput,
+                    "missing starting counter\0",
+                ));
+            }
+            Some(c) => c,
+        };
+        let counter = counter.parse().map_err(|e| {
+            // Errors can be nicely handled using new_dynamic and format!().
+            Error::new_dynamic(
+                ErrorCode::InvalidInput,
+                format!("counter parsing error: {e}"),
+            )
+        })?;
+
+        let max_sub = match split.next() {
+            None => {
+                return Err(Error::new_static(
+                    ErrorCode::InvalidInput,
+                    "missing maximum subtrahend\0",
+                ))
+            }
+            Some(s) => s,
+        };
+        let max_sub = max_sub.parse().map_err(|e| {
+            Error::new_dynamic(
+                ErrorCode::InvalidInput,
+                format!("subtrahend parsing error: {e}"),
+            )
+        })?;
+        if max_sub == 0 {
+            return Err(Error::new_static(
+                ErrorCode::InvalidOptions,
+                "maximum subtrahend is zero\0",
+            ));
+        }
+
+        Ok(Nim::new(counter, max_sub))
+    }
+
     /// This calculates the [`buf_sizer`] according to the description in the
     /// `game.h`.
     ///
     /// Especially, remember that string lengths also include the NUL byte.
     fn calc_sizer(&self) -> buf_sizer {
-        // eg. b"A 42\0"
+        // eg. "A 42\0"
         let state_str = digits(self.counter) + 3;
         buf_sizer {
             options_str: digits(self.counter) + digits(self.max_sub) + 2,
@@ -43,10 +90,10 @@ impl Nim {
             player_count: 2,
             max_players_to_move: 1,
             max_moves: self.max_sub.into(),
-            max_actions: 0,
             max_results: 1,
             move_str: digits(self.max_sub) + 1,
             print_str: state_str + 1,
+            ..Default::default()
         }
     }
 
@@ -80,64 +127,40 @@ impl Default for Nim {
 impl GameMethods for Nim {
     /// Create a new instance of the game data.
     ///
-    /// The game is configured by parsing the options `string`.
+    /// The game can be configured by parsing the `init_info`'s `opts` and
+    /// `state`.
     /// Be careful, the options might be user input!
     ///
     /// See also [`Nim::calc_sizer`].
-    fn create_with_opts_str(string: &str) -> Result<(Self, buf_sizer)> {
-        // eg. "21 3"
-        let mut split = string.split_whitespace();
-
-        let counter = match split.next() {
-            None => {
-                // Remember to include a trailing NUL byte for static errors!
-                return Err(Error::new_static(
-                    ErrorCode::InvalidInput,
-                    b"missing starting counter\0",
-                ));
+    fn create(init_info: &GameInit) -> Result<(Self, buf_sizer)> {
+        let game = match init_info {
+            GameInit::Default => Nim::default(),
+            GameInit::Standard {
+                opts,
+                legacy,
+                state,
+            } => {
+                if legacy.is_some() {
+                    return Err(Error::new_static(
+                        ErrorCode::InvalidLegacy,
+                        "legacy not supported",
+                    ));
+                }
+                let mut g = opts
+                    .map(Self::from_options)
+                    .transpose()?
+                    .unwrap_or_default();
+                g.import_state(*state)?;
+                g
             }
-            Some(c) => c,
-        };
-        let counter = counter.parse().map_err(|e| {
-            // Errors can be nicely handled using new_dynamic and format!().
-            Error::new_dynamic(
-                ErrorCode::InvalidInput,
-                format!("counter parsing error: {e}"),
-            )
-        })?;
-
-        let max_sub = match split.next() {
-            None => {
+            GameInit::Serialized(_) => {
                 return Err(Error::new_static(
-                    ErrorCode::InvalidInput,
-                    b"missing maximum subtrahend\0",
+                    ErrorCode::FeatureUnsupported,
+                    "initialization via serialized state unsupported",
                 ))
             }
-            Some(s) => s,
         };
-        let max_sub = max_sub.parse().map_err(|e| {
-            Error::new_dynamic(
-                ErrorCode::InvalidInput,
-                format!("subtrahend parsing error: {e}"),
-            )
-        })?;
-        if max_sub == 0 {
-            return Err(Error::new_static(
-                ErrorCode::InvalidOptions,
-                b"maximum subtrahend is zero\0",
-            ));
-        }
 
-        let game = Nim::new(counter, max_sub);
-        let sizer = game.calc_sizer();
-        Ok((game, sizer))
-    }
-
-    /// Create a new instance of the game data with default settings.
-    ///
-    /// See also [`Nim::calc_sizer`].
-    fn create_default() -> Result<(Self, buf_sizer)> {
-        let game = Nim::default();
         let sizer = game.calc_sizer();
         Ok((game, sizer))
     }
@@ -146,7 +169,7 @@ impl GameMethods for Nim {
     ///
     /// An [`StrBuf`] can be written to by simply using [`write!()`].
     /// The written length must not exceed [`buf_sizer::options_str`]` - 1`.
-    fn export_options_str(&mut self, str_buf: &mut StrBuf) -> Result<()> {
+    fn export_options(&mut self, str_buf: &mut StrBuf) -> Result<()> {
         write!(str_buf, "{} {}", self.initial_counter, self.max_sub)
             .expect("failed to write options buffer");
         Ok(())
@@ -154,7 +177,7 @@ impl GameMethods for Nim {
 
     /// Simply copy the data from `other` to `self`.
     ///
-    /// The idea is to reuse eg. allocated buffers as much as possible.
+    /// The idea is to reuse eg., allocated buffers as much as possible.
     fn copy_from(&mut self, other: &mut Self) -> Result<()> {
         *self = *other;
         Ok(())
@@ -184,7 +207,7 @@ impl GameMethods for Nim {
             None => {
                 return Err(Error::new_static(
                     ErrorCode::InvalidInput,
-                    b"missing counter value\0",
+                    "missing counter value\0",
                 ))
             }
             Some(c) => c,
@@ -196,7 +219,7 @@ impl GameMethods for Nim {
             _ => {
                 return Err(Error::new_static(
                     ErrorCode::InvalidInput,
-                    b"invalid player code\0",
+                    "invalid player code\0",
                 ))
             }
         };
@@ -255,19 +278,19 @@ impl GameMethods for Nim {
         if self.counter == 0 {
             return Err(Error::new_static(
                 ErrorCode::InvalidInput,
-                b"game already over\0",
+                "game already over\0",
             ));
         }
         if mov == 0 {
             return Err(Error::new_static(
                 ErrorCode::InvalidInput,
-                b"need to subtract at least one\0",
+                "need to subtract at least one\0",
             ));
         }
         if player != self.player_id() {
             return Err(Error::new_static(
                 ErrorCode::InvalidInput,
-                b"this player is not to move\0",
+                "this player is not to move\0",
             ));
         }
         sub_too_large(mov as Counter, self.counter)?;
@@ -305,7 +328,7 @@ impl GameMethods for Nim {
         Ok(())
     }
 
-    fn debug_print(&mut self, str_buf: &mut StrBuf) -> Result<()> {
+    fn print(&mut self, str_buf: &mut StrBuf) -> Result<()> {
         self.export_state(str_buf)?;
         writeln!(str_buf).expect("failed to write print buffer");
         Ok(())
@@ -323,9 +346,9 @@ fn example_game_methods() -> game_methods {
     features.set_options(true);
 
     create_game_methods::<Nim>(Metadata {
-        game_name: cstr(b"Nim\0"),
-        variant_name: cstr(b"Standard\0"),
-        impl_name: cstr(b"surena_game_rs\0"),
+        game_name: cstr("Nim\0"),
+        variant_name: cstr("Standard\0"),
+        impl_name: cstr("surena_game_rs\0"),
         version: semver {
             major: 0,
             minor: 1,

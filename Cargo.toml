@@ -9,8 +9,9 @@ edition = "2021"
 authors = ["vilaureu"]
 publish = false
 
-[build-dependencies]
-bindgen = "0.60"
+[dependencies.mirabel_sys]
+git = "https://github.com/vilaureu/mirabel_sys"
+rev = "75146bbba1e447fae0df6de6d3217dec386d244d"
 
 # Optionally, the release build can be optimized.
 [profile.release]

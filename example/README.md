@@ -8,14 +8,15 @@ This example game of _Nim_ shows how to use the _surena_game_ wrapper library.
    ```
    $ cargo build
    ```
-2. Build the surena project (in `../surena`):
+2. Checkout and build the _surena_ project matching the version used by
+   _mirabel_sys_:
    ```
-   $ cmake -S . -B build`
+   $ cmake -S <surena project checkout> -B build`
    $ cmake --build build
    ```
 3. Execute the example project (in the project root):
    ```
-   $ ./surena/build/surena --game-plugin ./target/debug/libexample.so
+   $ ./build/surena --game-plugin ./target/debug/libexample.so
    ```
 
 ## Documentation

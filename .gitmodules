@@ -1,4 +1,0 @@
-[submodule "surena"]
-	path = surena
-	url = https://github.com/RememberOfLife/surena.git
-	branch = master
