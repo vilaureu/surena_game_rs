@@ -12,6 +12,8 @@ publish = false
 [dependencies.mirabel_sys]
 git = "https://github.com/vilaureu/mirabel_sys"
 rev = "75146bbba1e447fae0df6de6d3217dec386d244d"
+default-features = false
+features = ["surena"]
 
 # Optionally, the release build can be optimized.
 [profile.release]
