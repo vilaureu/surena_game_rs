@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          repository: mirabel_sys
+          repository: vilaureu/mirabel_sys
           ref: ${{ needs.build.outputs.mirabel_sys }}
           submodules: recursive
       - name: Get surena commit
