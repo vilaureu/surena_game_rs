@@ -11,7 +11,7 @@ publish = false
 
 [dependencies.mirabel_sys]
 git = "https://github.com/vilaureu/mirabel_sys"
-rev = "75146bbba1e447fae0df6de6d3217dec386d244d"
+rev = "f2acf8e58d7dcff5ef8889ce3c9283b6c7a4fb08"
 default-features = false
 features = ["surena"]
 
