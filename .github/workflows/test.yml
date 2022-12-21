@@ -14,7 +14,7 @@ jobs:
     name: Build and test
     runs-on: ubuntu-latest
     outputs:
-      mirabel_sys: ${{ steps.step1.mirabel_sys.rev }}
+      mirabel_sys: ${{ steps.mirabel_sys.outputs.rev }}
     steps:
       - uses: actions/checkout@v3
       - name: Get date
@@ -27,7 +27,8 @@ jobs:
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
+            ~/.cargo/git/
+            ~/.cargo/.*
             target/
           key: "${{ runner.os }}-cargo-${{ steps.get-date.outputs.date }}\
             -${{ hashFiles('Cargo.toml') }}"
@@ -68,9 +69,13 @@ jobs:
         run: echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
         working-directory: mirabel/lib/surena
       - uses: actions/cache@v3
+        id: cache
         with:
           path: build/
           key: ${{ runner.os }}-surena-${{ steps.get-surena.outputs.commit }}
+      - name: Touch build to prevent CMake from recompiling
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: find build -exec touch {} +
       - uses: actions/download-artifact@v3
         with:
           name: example
