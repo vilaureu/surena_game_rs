@@ -38,10 +38,8 @@ and do not have to deal with the FFI interface.
 
 This project uses the following libraries:
 
-- [_surena_](https://github.com/RememberOfLife/surena/) under the
-  [_MIT License_](https://github.com/RememberOfLife/surena/blob/master/LICENSE)
-- [_bindgen_](https://github.com/rust-lang/rust-bindgen) under the
-  [_BSD 3-Clause License_](https://github.com/rust-lang/rust-bindgen/blob/master/LICENSE)
+- [_mirabel_sys_](https://github.com/vilaureu/mirabel_sys) under the
+  [_MIT License_](https://github.com/vilaureu/mirabel_sys/blob/master/LICENSE)
 
 ## License
 
