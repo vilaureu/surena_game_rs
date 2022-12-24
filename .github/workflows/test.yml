@@ -17,6 +17,7 @@ jobs:
       mirabel_sys: ${{ steps.mirabel_sys.outputs.rev }}
     steps:
       - uses: actions/checkout@v3
+        id: checkout
       - name: Get date
         id: get-date
         # purge cache weekly to refresh updated dependencies
@@ -50,7 +51,11 @@ jobs:
         timeout-minutes: 5
         run: cargo test --verbose
       - name: Clippy
+        if: "!cancelled() && steps.checkout.outcome == 'success'"
         run: cargo clippy --no-deps -- --deny=warnings
+      - name: Check formatting
+        if: "!cancelled() && steps.checkout.outcome == 'success'"
+        run: cargo fmt --check
 
   surena:
     name: Surena integration test
